@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# Build args
+# ---------------------------------------------------------------------------
+ARG GITHUB_REPO=your-org/artex-python
+ARG UPDATE_CHECK_INTERVAL=300
+ARG DRAIN_TIMEOUT=120
+
+# ---------------------------------------------------------------------------
+# Stage 1: System dependencies (base image)
+# ---------------------------------------------------------------------------
+FROM python:3.11-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommend \
+        curl \
+        ca-certificates \
+        gnupg \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# Stage 2: Build Python venv (isolated, reproducible)
+# ---------------------------------------------------------------------------
+FROM base AS builder
+
+WORKDIR /build
+
+COPY requirements.txt .
+
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# ---------------------------------------------------------------------------
+# Stage 3: Final runtime image
+# ---------------------------------------------------------------------------
+FROM base AS runtime
+
+ARG GITHUB_REPO
+ARG UPDATE_CHECK_INTERVAL
+ARG DRAIN_TIMEOUT
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
+    GITHUB_REPO=${GITHUB_REPO} \
+    UPDATE_CHECK_INTERVAL=${UPDATE_CHECK_INTERVAL} \
+    DRAIN_TIMEOUT=${DRAIN_TIMEOUT}
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY . .
+
+RUN chmod +x entrypoint.sh && \
+    useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -fs http://localhost:8000/api/health || exit 1
+
+ENTRYPOINT ["/app/entrypoint.sh"]

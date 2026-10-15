@@ -1,0 +1,100 @@
+version: "3.9"
+
+services:
+  # -----------------------------------------------------------------------
+  # ARTEX Python backend
+  # -----------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: artex-python:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-artex_user}:${DB_PASS:-artex_pass}@postgres:5432/${DB_NAME:-artex_db}
+      DB_ECHO: "false"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      DEBUG: "false"
+      APP_NAME: ARTEX Python
+      GITHUB_REPO: ${GITHUB_REPO:-your-org/artex-python}
+      UPDATE_CHECK_INTERVAL: ${UPDATE_CHECK_INTERVAL:-300}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - artex-net
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - artex-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # -----------------------------------------------------------------------
+  # PostgreSQL (data persistence)
+  # -----------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-artex_user}
+      POSTGRES_PASSWORD: ${DB_PASS:-artex_pass}
+      POSTGRES_DB: ${DB_NAME:-artex_db}
+    ports:
+      - "5432:5432"
+    networks:
+      - artex-net
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-artex_user} -d ${DB_NAME:-artex_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -----------------------------------------------------------------------
+  # mitmproxy (standalone traffic interception)
+  # -----------------------------------------------------------------------
+  mitmproxy:
+    image: mitmproxy:11
+    restart: unless-stopped
+    ports:
+      - "8081:8081"   # upstream proxy
+      - "8082:8082"   # web UI
+    command: mitmweb --listen-host 0.0.0.0 --listen-port 8081 --web-host 0.0.0.0 --web-port 8082 --mode reverse:http://backend:8000
+    networks:
+      - artex-net
+    depends_on:
+      - backend
+    volumes:
+      - mitmdata:/home/mitmproxy/.mitmproxy
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+# -----------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------
+volumes:
+  pgdata:
+  artex-data:
+  mitmdata:
+
+# -----------------------------------------------------------------------
+# Network
+# -----------------------------------------------------------------------
+networks:
+  artex-net:
+    driver: bridge

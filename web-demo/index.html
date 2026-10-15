@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ARTEX · AI 自主渗透测试</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">A</div>
+        <div class="brand-text">
+          <div class="brand-name">ARTEX</div>
+          <div class="brand-sub">自主渗透测试</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="#/dashboard" class="nav-item" data-route="dashboard"><span class="ico">▤</span>仪表盘</a>
+        <a href="#/tasks" class="nav-item" data-route="tasks"><span class="ico">☰</span>任务</a>
+        <a href="#/findings" class="nav-item" data-route="findings"><span class="ico">⚑</span>漏洞</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="user-chip" id="user-chip">—</div>
+        <button class="btn ghost" id="logout-btn">退出</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title" id="page-title">仪表盘</div>
+        <div class="topbar-actions">
+          <span class="conn-dot" id="conn-dot" title="SSE 连接状态"></span>
+          <span class="muted" id="clock"></span>
+        </div>
+      </header>
+      <section class="content" id="view"><!-- rendered by router --></section>
+    </main>
+  </div>
+
+  <!-- Login -->
+  <div id="login" class="login-wrap">
+    <form class="login-card" id="login-form">
+      <div class="brand-mark big">A</div>
+      <h1>ARTEX</h1>
+      <p class="muted">AI 自主渗透测试平台</p>
+      <label>用户名<input id="li-user" value="admin" autocomplete="username" /></label>
+      <label>密码<input id="li-pass" type="password" value="admin123" autocomplete="current-password" /></label>
+      <button class="btn primary block" type="submit">登录</button>
+      <div class="login-err" id="login-err"></div>
+      <div class="muted tiny">默认账号 admin / admin123</div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
